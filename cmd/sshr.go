@@ -1,36 +1,61 @@
 package main
 
 import (
-    "bytes"
-    "fmt"
-    "golang.org/x/crypto/ssh"
-    "log"
+	"log"
+	"os"
+
+	"sshr/conf"
+
+	"golang.org/x/crypto/ssh"
+	"golang.org/x/term"
 )
 
+func die(msg string, err error) {
+	if err != nil {
+		log.Fatalf("%s fail: %v\n", msg, err)
+	}
+}
+
+func warn(msg string, err error) {
+	if err != nil {
+		log.Printf("%s fail: %v\n", msg, err)
+	}
+}
+
 func main() {
-    // 建立SSH客户端连接
-    client, err := ssh.Dial("tcp", "127.0.0.1:22", &ssh.ClientConfig{
-        User:            "sangfor",
-        Auth:            []ssh.AuthMethod{ssh.Password("119")},
-        HostKeyCallback: ssh.InsecureIgnoreHostKey(),
-    })
-    if err != nil {
-        log.Fatalf("SSH dial error: %s", err.Error())
-    }
+	var (
+		c    = conf.GetSshConf()
+		auth = []ssh.AuthMethod{ssh.Password(c.Passwd)}
+		cb   = ssh.InsecureIgnoreHostKey()
+		cc   = &ssh.ClientConfig{User: c.User, Auth: auth, HostKeyCallback: cb}
+	)
 
-    // 建立新会话
-    session, err := client.NewSession()
-    if err != nil {
-        log.Fatalf("new session error: %s", err.Error())
-    }
+	cli, err := ssh.Dial("tcp", c.Host, cc)
+	die("SSH dial", err)
 
-    defer session.Close()
+	session, err := cli.NewSession() // 建立会话
+	die("New session", err)
+	defer session.Close()
 
+	fd := int(os.Stdin.Fd())
+	oldState, err := term.MakeRaw(fd)
+	die("Terminal MakeRaw", err)
+	defer term.Restore(fd, oldState)
 
-    var b bytes.Buffer
-    session.Stdout = &b
-    if err := session.Run("ls"); err != nil {
-        panic("Failed to run: " + err.Error())
-    }
-    fmt.Println(b.String())
+	session.Stdout = os.Stdout
+	session.Stderr = os.Stdin
+	session.Stdin = os.Stdin
+
+	w, h, err := term.GetSize(fd)
+	warn("Terminal GetSize", err)
+
+	modes := ssh.TerminalModes{
+		ssh.ECHO:          1,
+		ssh.TTY_OP_ISPEED: 115200,
+		ssh.TTY_OP_OSPEED: 115200,
+	}
+
+	die("Request pty", session.RequestPty("xterm-256color", h, w, modes))
+	die("Start shell", session.Shell())
+	die("Ssh Wait", session.Wait())
 }
