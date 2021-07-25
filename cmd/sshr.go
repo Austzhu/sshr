@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"sshr/client"
+	"sshr/conf"
 	"strings"
 
 	. "sshr/public"
@@ -15,11 +16,7 @@ import (
 
 const SSHR = "SSHR"
 
-type sshConf struct {
-	passwd string
-	user   string
-	host   string
-}
+type sshConf struct{ conf.SShAuth }
 
 func (sc *sshConf) parse() *sshConf {
 	uhost := os.Args[1]
@@ -38,15 +35,21 @@ func (sc *sshConf) parse() *sshConf {
 		host = fmt.Sprintf("%s:%s", addr[0], addr[1])
 	}
 
-	sc.user = uh[0]
-	sc.host = host
+	sc.User = uh[0]
+	sc.Host = host
+	if sc.Passwd == "" {
+		sc.Passwd = conf.GetPasswd(sc.SShAuth)
+	}
+
 	return sc
 }
 
 func doSSh(c *cmd) (err error) {
 	defer Recover(&err)()
 	sc := c.args.(*sshConf).parse()
-	cli, err := client.NewCli(sc.user, sc.passwd, sc.host)
+	cli, err := client.NewCli(sc.User, sc.Passwd, sc.Host)
+
+	conf.Save(sc.SShAuth)
 	Die("SSH Dial", err)
 	Die("SSH Terminal", cli.Terminal())
 	return
@@ -55,7 +58,9 @@ func doSSh(c *cmd) (err error) {
 func init() {
 	cfg := &sshConf{}
 	set := flag.NewFlagSet(SSHR, flag.ExitOnError)
-	set.StringVar(&cfg.passwd, "p", "", "ssh登入的密码")
+	set.StringVar(&cfg.Passwd, "p", "", "ssh登入的密码")
+	set.StringVar(&cfg.Brief, "b", "-", "ssh连接的描述信息")
+	set.StringVar(&cfg.Group, "g", "-", "ssh连接的group信息")
 	register(&cmd{
 		name:    SSHR,
 		brief:   "-",
