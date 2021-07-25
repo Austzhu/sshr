@@ -1,61 +1,45 @@
 package main
 
 import (
-	"log"
 	"os"
-
+	"os/exec"
+	"runtime"
+	"sshr/client"
 	"sshr/conf"
 
-	"golang.org/x/crypto/ssh"
+	. "sshr/public"
+
 	"golang.org/x/term"
 )
 
-func die(msg string, err error) {
-	if err != nil {
-		log.Fatalf("%s fail: %v\n", msg, err)
-	}
-}
-
-func warn(msg string, err error) {
-	if err != nil {
-		log.Printf("%s fail: %v\n", msg, err)
-	}
+func start() {
+	conf.Init()
+	c := conf.GetSshConf()
+	cli, err := client.NewCli(c.User, c.Passwd, c.Host)
+	Die("SSH Dial", err)
+	Die("SSH Terminal", cli.Terminal())
+	cli = nil
+	runtime.GC()
 }
 
 func main() {
-	var (
-		c    = conf.GetSshConf()
-		auth = []ssh.AuthMethod{ssh.Password(c.Passwd)}
-		cb   = ssh.InsecureIgnoreHostKey()
-		cc   = &ssh.ClientConfig{User: c.User, Auth: auth, HostKeyCallback: cb}
-	)
-
-	cli, err := ssh.Dial("tcp", c.Host, cc)
-	die("SSH dial", err)
-
-	session, err := cli.NewSession() // 建立会话
-	die("New session", err)
-	defer session.Close()
-
-	fd := int(os.Stdin.Fd())
-	oldState, err := term.MakeRaw(fd)
-	die("Terminal MakeRaw", err)
-	defer term.Restore(fd, oldState)
-
-	session.Stdout = os.Stdout
-	session.Stderr = os.Stdin
-	session.Stdin = os.Stdin
-
-	w, h, err := term.GetSize(fd)
-	warn("Terminal GetSize", err)
-
-	modes := ssh.TerminalModes{
-		ssh.ECHO:          1,
-		ssh.TTY_OP_ISPEED: 115200,
-		ssh.TTY_OP_OSPEED: 115200,
+	if os.Getenv("SSHR") == "YES" {
+		start()
+		return
 	}
 
-	die("Request pty", session.RequestPty("xterm-256color", h, w, modes))
-	die("Start shell", session.Shell())
-	die("Ssh Wait", session.Wait())
+	Die("Set env", os.Setenv("SSHR", "YES")) // 设置一个环境变量，防止子进程递归执行
+
+	/* 使用子进程来连接ssh, 防止exit时，终端tty设置没有恢复二乱码 */
+	cmd := exec.Command(os.Args[0], os.Args[1:]...)
+	fd := int(os.Stdin.Fd())
+	state, err := term.MakeRaw(fd)
+	Die("Term MakeRaw", err)
+	defer func() { term.Restore(fd, state) }() // 恢复到默认的tty
+
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	Die("CMD RUN", cmd.Run())
+	cmd.Process.Kill()
 }
