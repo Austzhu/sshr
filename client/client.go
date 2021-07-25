@@ -1,7 +1,6 @@
 package client
 
 import (
-	"fmt"
 	"os"
 	"runtime"
 
@@ -21,14 +20,6 @@ type Client struct {
 	state   *term.State
 }
 
-func recv(err *error) func() {
-	return func() {
-		if rec := recover(); rec != nil {
-			*err = fmt.Errorf("%v", rec)
-		}
-	}
-}
-
 func close(c *Client) {
 	if c.session != nil {
 		Warn("Session close", c.session.Close())
@@ -45,7 +36,7 @@ func close(c *Client) {
 }
 
 func NewCli(user, pwd, host string) (cli *Client, err error) {
-	defer recv(&err)() // 错误恢复
+	defer Recover(&err)() // 错误恢复
 
 	c := &Client{User: user, Passwd: pwd, Host: host}
 	c.scli, err = ssh.Dial("tcp", host, &ssh.ClientConfig{
@@ -65,7 +56,7 @@ func NewCli(user, pwd, host string) (cli *Client, err error) {
 }
 
 func (c *Client) Terminal() (err error) {
-	defer recv(&err)()
+	defer Recover(&err)()
 
 	session := c.session
 	c.fd = int(os.Stdin.Fd())
