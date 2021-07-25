@@ -26,26 +26,32 @@ type SShConf struct {
 
 var sconf = &SShConf{}
 
-func (c *SShConf) GetAuth(u, h, p string) *SShAuth {
+func (c *SShConf) GetAuth(au SShAuth) (*SShAuth, bool) {
 	c.RLock()
 	defer c.RUnlock()
 
-	for _, v := range c.Auth {
-		if v.User == u && v.Host == h {
-			if p == "" {
-				return &v
-			}
+	for i, v := range c.Auth {
+		if v.User == au.User && v.Host == au.Host {
+			if au.Passwd == "" || v.Passwd == au.Passwd {
+				needSave := false
 
-			if v.Passwd == p {
-				return &v
+				if au.Group != "-" {
+					needSave = true
+					c.Auth[i].Group = au.Group
+				}
+
+				if au.Brief != "-" {
+					needSave = true
+					c.Auth[i].Brief = au.Brief
+				}
+
+				return &v, needSave
 			}
 		}
 	}
 
-	return nil
+	return nil, true
 }
-
-func (c *SShConf) isExist(u, h, p string) bool { return c.GetAuth(u, h, p) != nil }
 
 func dedup(list []string) []string {
 	var dump = make(map[string]bool)
@@ -63,7 +69,7 @@ func dedup(list []string) []string {
 }
 
 func GetPasswd(au SShAuth) string {
-	a := sconf.GetAuth(au.User, au.Host, "")
+	a, _ := sconf.GetAuth(au)
 	if a == nil {
 		return ""
 	}
@@ -71,25 +77,37 @@ func GetPasswd(au SShAuth) string {
 	return a.Passwd
 }
 
-func Save(au SShAuth) {
-	c := sconf
-	if c.isExist(au.User, au.Host, au.Passwd) {
-		return
-	}
-
-	c.Lock()
-	defer c.Unlock()
-
-	c.Auth = append(c.Auth, au)
+func (c *SShConf) genList(g string) []string {
 	var slist []string
 	for _, v := range c.Auth {
 		uh := fmt.Sprintf("%s@%s", v.User, v.Host)
-		s := fmt.Sprintf("%-36s %-8s %-8s %s", uh, v.Passwd, v.Group, v.Brief)
+		s := fmt.Sprintf("%-32s %-8s %-8s %s", uh, v.Passwd, v.Group, v.Brief)
 		slist = append(slist, s)
 	}
 
-	str := strings.Join(dedup(slist), "\n")
-	ioutil.WriteFile(c.fileName, []byte(str), 0644)
+	return dedup(slist)
+}
+
+func List(g string) []string {
+	sconf.RLock()
+	defer sconf.RUnlock()
+	return sconf.genList(g)
+}
+
+func Save(au SShAuth) {
+	c := sconf
+	auth, needSave := c.GetAuth(au)
+
+	if auth == nil {
+		c.Lock()
+		defer c.Unlock()
+		c.Auth = append(c.Auth, au)
+	}
+
+	if needSave {
+		str := strings.Join(c.genList(""), "\n") + "\n"
+		ioutil.WriteFile(c.fileName, []byte(str), 0644)
+	}
 }
 
 func oneParse(text string) *SShAuth {

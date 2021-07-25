@@ -1,10 +1,17 @@
 package main
 
-import "flag"
+import (
+	"flag"
+	"fmt"
+	"sshr/conf"
+	"strings"
+)
 
 type listConf struct{ regx string }
 
 func doList(c *cmd) error {
+	l := conf.List("")
+	fmt.Println(strings.Join(l, "\n"))
 	return nil
 }
 
