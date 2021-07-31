@@ -55,6 +55,9 @@ func NewCli(user, pwd, host string) (cli *Client, err error) {
 	return
 }
 
+func (c *Client) SShCli() *ssh.Client      { return c.scli }
+func (c *Client) SShSession() *ssh.Session { return c.session }
+
 func (c *Client) Terminal() (err error) {
 	defer Recover(&err)()
 
