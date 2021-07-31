@@ -88,10 +88,10 @@ func (c *SShConf) genList(g string) []string {
 	return dedup(slist)
 }
 
-func List(g string) []string {
+func List(g string) []SShAuth {
 	sconf.RLock()
 	defer sconf.RUnlock()
-	return sconf.genList(g)
+	return sconf.Auth
 }
 
 func Save(au SShAuth) {

@@ -10,7 +10,13 @@ import (
 type listConf struct{ regx string }
 
 func doList(c *cmd) error {
-	l := conf.List("")
+	var l []string
+	for _, v := range conf.List("") {
+		uh := fmt.Sprintf("%s@%s", v.User, v.Host)
+		s := fmt.Sprintf("%-32s %-8s %s", uh, v.Group, v.Brief)
+		l = append(l, s)
+	}
+
 	fmt.Println(strings.Join(l, "\n"))
 	return nil
 }
