@@ -6,12 +6,12 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"sshr/client"
-	"sshr/conf"
-	. "sshr/public"
 	"strings"
 
 	"github.com/pkg/sftp"
+	"github.com/zhuzongzhen/sshr/client"
+	"github.com/zhuzongzhen/sshr/conf"
+	. "github.com/zhuzongzhen/sshr/public"
 )
 
 type scpConf struct{}

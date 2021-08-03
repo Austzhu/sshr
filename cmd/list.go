@@ -3,8 +3,9 @@ package main
 import (
 	"flag"
 	"fmt"
-	"sshr/conf"
 	"strings"
+
+	"github.com/zhuzongzhen/sshr/conf"
 )
 
 type listConf struct{ regx string }

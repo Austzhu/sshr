@@ -9,7 +9,7 @@ import (
 	"regexp"
 	"sync"
 
-	. "sshr/public"
+	. "github.com/zhuzongzhen/sshr/public"
 )
 
 type cmd struct {

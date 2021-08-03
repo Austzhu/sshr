@@ -4,8 +4,7 @@ import (
 	"os"
 	"runtime"
 
-	. "sshr/public"
-
+	. "github.com/zhuzongzhen/sshr/public"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/term"
 )
@@ -32,7 +31,6 @@ func close(c *Client) {
 	if c.state != nil {
 		Warn("Term restore", term.Restore(c.fd, c.state))
 	}
-
 }
 
 func NewCli(user, pwd, host string) (cli *Client, err error) {

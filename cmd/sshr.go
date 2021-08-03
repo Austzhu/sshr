@@ -5,12 +5,11 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"sshr/client"
-	"sshr/conf"
 	"strings"
 
-	. "sshr/public"
-
+	"github.com/zhuzongzhen/sshr/client"
+	"github.com/zhuzongzhen/sshr/conf"
+	. "github.com/zhuzongzhen/sshr/public"
 	"golang.org/x/term"
 )
 

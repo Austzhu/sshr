@@ -1,4 +1,4 @@
-module sshr
+module github.com/zhuzongzhen/sshr
 
 go 1.16
 
