@@ -3,6 +3,7 @@ package client
 import (
 	"os"
 	"runtime"
+	"time"
 
 	. "github.com/zhuzongzhen/sshr/public"
 	"golang.org/x/crypto/ssh"
@@ -18,6 +19,16 @@ type Client struct {
 	fd      int
 	state   *term.State
 }
+
+type ClientRw struct{ cio *os.File }
+
+func (crw *ClientRw) Read(p []byte) (n int, err error) { return crw.cio.Read(p) }
+func (crw *ClientRw) Write(p []byte) (n int, err error) {
+	/* 这里可以增加rzsz的检测，以支持rzsz */
+	return crw.cio.Write(p)
+}
+
+func (crw *ClientRw) Close() {}
 
 func close(c *Client) {
 	if c.session != nil {
@@ -41,6 +52,7 @@ func NewCli(user, pwd, host string) (cli *Client, err error) {
 		User:            user,
 		Auth:            []ssh.AuthMethod{ssh.Password(pwd)},
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+		Timeout:         24 * time.Hour,
 	})
 	Die("SSH dial", err)
 
@@ -64,9 +76,9 @@ func (c *Client) Terminal() (err error) {
 	c.state, err = term.MakeRaw(c.fd)
 	Die("Terminal MakeRaw", err)
 
-	session.Stdout = os.Stdout
-	session.Stderr = os.Stdin
-	session.Stdin = os.Stdin
+	session.Stdout = &ClientRw{cio: os.Stdout}
+	session.Stderr = &ClientRw{cio: os.Stderr}
+	session.Stdin = &ClientRw{cio: os.Stdin}
 
 	w, h, err := term.GetSize(c.fd)
 	Warn("Terminal GetSize", err)
